@@ -2,12 +2,12 @@
 #!/bin/bash
 set -e  # Exit immediately if a command exits with a non-zero status
 
-echo "\n"
+echo ""
 # Start Keycloak and the Flask app using Docker Compose
 echo "[*] Starting Keycloak and the Flask app..."
 docker compose up -d --build
 
-echo "\n"
+echo ""
 # Wait until Keycloak is ready to accept connections
 echo "[*] Waiting for Keycloak to be ready..."
 until curl -s http://localhost:8080/realms/master > /dev/null; do
@@ -15,11 +15,11 @@ until curl -s http://localhost:8080/realms/master > /dev/null; do
     sleep 5
 done
 
-echo "\n"
+echo ""
 # Configure Keycloak using its REST API
 echo "[*] Configuring Keycloak via REST API..."
 
-echo "\n"
+echo ""
 # Obtain an admin access token from Keycloak
 export ADMIN_TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -32,7 +32,7 @@ export ADMIN_TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protoc
 REALM_EXISTS=$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:8080/admin/realms | jq -r '.[] | select(.realm=="FintechApp") | .realm')
 if [ "$REALM_EXISTS" == "FintechApp" ]; then
   echo "[!] Realm 'FintechApp' already exists. Skipping creation."
-  echo "\n"
+  echo ""
 else
   # Create the 'FintechApp' realm using the provided configuration
   curl -s -X POST "http://localhost:8080/admin/realms" \
@@ -40,8 +40,12 @@ else
     -H "Content-Type: application/json" \
     -d @realm-config.json
   echo "[✔] Realm 'FintechApp' created."
-  echo "\n"
+  echo ""
 fi
+
+# Populate LDAP with seed data
+echo "[*] Populating LDAP with seed data..."
+cat seed.ldif | docker exec -i "$(docker compose ps -q ldap)" ldapadd -x -D "cn=admin,dc=example,dc=com" -w adminpw
 
 # Test access token retrieval for the test user
 echo "[*] Testing access token retrieval..."
@@ -101,17 +105,17 @@ RESPONSE=$(curl -s -X POST "http://host.docker.internal:8080/realms/FintechApp/p
   -d "username=testuser" \
   -d "password=password")
 
-echo "\n"
+echo ""
 # Print the token response in a readable format
 export TESTUSER_ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r .access_token)
 curl -H "Authorization: Bearer $TESTUSER_ACCESS_TOKEN" http://host.docker.internal:15000
 echo "$TESTUSER_ACCESS_TOKEN" > testuser_access_token.txt
 
-echo "\n"
+echo ""
 # Print the token response in a readable format
 echo "$RESPONSE" | jq
 
-echo "\n"
+echo ""
 echo "[*] Testing access token retrieval for nonexisting user..."
 RESPONSE=$(curl -s -X POST "http://host.docker.internal:8080/realms/FintechApp/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
@@ -121,11 +125,11 @@ RESPONSE=$(curl -s -X POST "http://host.docker.internal:8080/realms/FintechApp/p
   -d "username=baduser" \
   -d "password=badpassword")
 
-echo "\n"
+echo ""
 # Print the token response in a readable format
 echo "$RESPONSE" | jq
 
-echo "\n"
+echo ""
 echo "[✔] Setup complete. Access the Flask app at: http://host.docker.internal:15000"
 echo "[ℹ️ ] To test manually:"
 echo "curl -H \"Authorization: Bearer <access_token>\" http://host.docker.internal:15000"

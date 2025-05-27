@@ -16,6 +16,7 @@ APP_CONTAINER_PORT_HOST := 15000      # Port mapped to your host for external ac
 ZAP_REPORT_DIR := zap_reports
 ZAP_DOCKER_IMAGE := zaproxy/zap-stable # <--- UPDATED: Using the new official ZAP Docker image
 TESTUSER_ACCESS_TOKEN = $(shell cat testuser_access_token.txt)
+
 # --- Your Existing Lab Targets ---
 up:
 	@echo "[*] Starting Lab 1 (Keycloak + Flask App)..."
@@ -29,11 +30,17 @@ down:
 reset: down
 	@echo "[*] Resetting lab environment..."
 	@rm -rf keycloak_data
-	@docker system prune -f
+	@docker system prune -f 
 	@bash setup.sh
 
 logs:
 	@$(DOCKER_COMPOSE) logs -f
+
+reset: down
+	@echo "[*] Resetting lab environment..."
+	@rm -rf keycloak_data
+	@docker system prune -f
+	@make up	
 
 # --- Security Scan Targets ---
 
@@ -42,7 +49,7 @@ logs:
 # and your docker-compose.yml has a service named 'app'
 build:
 	@echo "--- Building $(APP_IMAGE_NAME) ---"
-	@$(DOCKER_COMPOSE) build app # Build only the 'app' service
+	@$(DOCKER_COMPOSE) build flask-app # Build only the 'app' service
 
 # Static Code Analysis (SAST)
 # Analyzes your source code for security vulnerabilities without running it.

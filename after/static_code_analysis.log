@@ -18,19 +18,19 @@ Collecting setuptools (from pbr>=2.0.0->stevedore>=1.20.0->bandit)
   Downloading setuptools-80.9.0-py3-none-any.whl.metadata (6.6 kB)
 Downloading bandit-1.8.3-py3-none-any.whl (129 kB)
 Downloading PyYAML-6.0.2-cp313-cp313-musllinux_1_1_aarch64.whl (726 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 726.7/726.7 kB 27.5 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 726.7/726.7 kB 29.3 MB/s eta 0:00:00
 Downloading stevedore-5.4.1-py3-none-any.whl (49 kB)
 Downloading rich-14.0.0-py3-none-any.whl (243 kB)
 Downloading markdown_it_py-3.0.0-py3-none-any.whl (87 kB)
 Downloading pbr-6.1.1-py2.py3-none-any.whl (108 kB)
 Downloading pygments-2.19.1-py3-none-any.whl (1.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 21.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 27.4 MB/s eta 0:00:00
 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
 Downloading setuptools-80.9.0-py3-none-any.whl (1.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 29.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 25.5 MB/s eta 0:00:00
 Installing collected packages: setuptools, PyYAML, pygments, mdurl, pbr, markdown-it-py, stevedore, rich, bandit
 Successfully installed PyYAML-6.0.2 bandit-1.8.3 markdown-it-py-3.0.0 mdurl-0.1.2 pbr-6.1.1 pygments-2.19.1 rich-14.0.0 setuptools-80.9.0 stevedore-5.4.1
-Run started:2025-05-27 17:32:58.354214
+Run started:2025-05-27 22:53:32.178926
 
 Test results:
 >> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.

@@ -58,7 +58,7 @@ sast:
 # Docker Image Vulnerability Scan
 # Scans the built Docker image for known vulnerabilities in OS packages and dependencies.
 # Uses Trivy.
-image-scan: build
+image-scan: 
 	@echo "\n--- Running Docker Image Vulnerability Scan on $(APP_IMAGE_NAME) with Docker Scout ---"
 	@docker scout recommendations $(APP_IMAGE_NAME)
 	@echo "Image vulnerability scan complete. Review findings above."

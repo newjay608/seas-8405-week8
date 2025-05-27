@@ -2,7 +2,10 @@ services:
   keycloak-db:
     image: postgres:16
     env_file:
-      - ./.env
+      - ./.psql.env
+    ports:
+      - "5432:5432"
+    restart: always
     volumes:
       - keycloak-db_data:/var/lib/postgresql/data
     networks:
@@ -27,7 +30,7 @@ services:
     image: quay.io/keycloak/keycloak:latest
     command: ["start-dev", "--import-realm"]
     env_file:
-      - ./.env
+      - ./.keycloak.env
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 1m30s
@@ -87,7 +90,7 @@ services:
   ldap:
     image: osixia/openldap:1.5.0
     env_file:
-      - ./.env
+      - ./.ldap.env
     ports:
       - "389:389"
     volumes:
@@ -116,7 +119,7 @@ services:
   phpldapadmin:
     image: osixia/phpldapadmin:0.9.0
     env_file:
-      - ./.env
+      - ./.phpldapadmin.env
     ports:
       - "8081:80"
     depends_on:
@@ -133,10 +136,49 @@ services:
           cpus: '0.1'
           memory: 128M
 
+  intranet:
+    build: ./intranet
+    env_file:
+      - ./.inta.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"          # map host.docker.internal to host
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges
+    read_only: true 
+    volumes:
+      - ./intranet/config:/app/config
+      - ./intranet/logs:/app/logs
+      - ./intranet/data:/app/data
+    depends_on:
+      - keycloak
+    networks:
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+          pids: 100
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+
 volumes:
   keycloak-db_data:
   ldap_data:
   ldap_config:
+  intranet_config:
+  intranet_logs:
+  intranet_data:
 
 networks:
   frontend:
