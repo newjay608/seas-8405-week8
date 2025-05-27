@@ -1,0 +1,62 @@
+Collecting bandit
+  Downloading bandit-1.8.3-py3-none-any.whl.metadata (7.0 kB)
+Collecting PyYAML>=5.3.1 (from bandit)
+  Downloading PyYAML-6.0.2-cp313-cp313-musllinux_1_1_aarch64.whl.metadata (2.1 kB)
+Collecting stevedore>=1.20.0 (from bandit)
+  Downloading stevedore-5.4.1-py3-none-any.whl.metadata (2.3 kB)
+Collecting rich (from bandit)
+  Downloading rich-14.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting pbr>=2.0.0 (from stevedore>=1.20.0->bandit)
+  Downloading pbr-6.1.1-py2.py3-none-any.whl.metadata (3.4 kB)
+Collecting markdown-it-py>=2.2.0 (from rich->bandit)
+  Downloading markdown_it_py-3.0.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting pygments<3.0.0,>=2.13.0 (from rich->bandit)
+  Downloading pygments-2.19.1-py3-none-any.whl.metadata (2.5 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich->bandit)
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Collecting setuptools (from pbr>=2.0.0->stevedore>=1.20.0->bandit)
+  Downloading setuptools-80.9.0-py3-none-any.whl.metadata (6.6 kB)
+Downloading bandit-1.8.3-py3-none-any.whl (129 kB)
+Downloading PyYAML-6.0.2-cp313-cp313-musllinux_1_1_aarch64.whl (726 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 726.7/726.7 kB 27.5 MB/s eta 0:00:00
+Downloading stevedore-5.4.1-py3-none-any.whl (49 kB)
+Downloading rich-14.0.0-py3-none-any.whl (243 kB)
+Downloading markdown_it_py-3.0.0-py3-none-any.whl (87 kB)
+Downloading pbr-6.1.1-py2.py3-none-any.whl (108 kB)
+Downloading pygments-2.19.1-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 21.2 MB/s eta 0:00:00
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Downloading setuptools-80.9.0-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 29.4 MB/s eta 0:00:00
+Installing collected packages: setuptools, PyYAML, pygments, mdurl, pbr, markdown-it-py, stevedore, rich, bandit
+Successfully installed PyYAML-6.0.2 bandit-1.8.3 markdown-it-py-3.0.0 mdurl-0.1.2 pbr-6.1.1 pygments-2.19.1 rich-14.0.0 setuptools-80.9.0 stevedore-5.4.1
+Run started:2025-05-27 17:32:58.354214
+
+Test results:
+>> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.3/plugins/b104_hardcoded_bind_all_interfaces.html
+   Location: /app/app/app.py:54:17
+53	if __name__ == "__main__":
+54	    app.run(host="0.0.0.0", port=5000)
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 35
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 0
+		Medium: 1
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 1
+		High: 0
+Files skipped (0):

@@ -1,0 +1,117 @@
+# Makefile
+
+# --- Phony Targets ---
+.PHONY: all up down reset logs build sast image-scan dast host-scan all-scans clean check_app_ready
+
+# --- Configuration Variables ---
+# Your existing DOCKER_COMPOSE variable
+DOCKER_COMPOSE := $(shell command -v docker-compose > /dev/null && echo docker-compose || echo docker compose)
+
+# Security-related variables
+APP_IMAGE_NAME := my-python-app:latest # Make sure this matches your Dockerfile's image name
+APP_SRC_DIR := app # Directory containing your Python application source code (e.g., app.py, requirements.txt)
+APP_CONTAINER_NAME := my-running-python-app # Name of the container for your Python app as defined in docker-compose.yml
+APP_CONTAINER_PORT_INTERNAL := 5000 # Port your Python app listens on inside the container
+APP_CONTAINER_PORT_HOST := 15000      # Port mapped to your host for external access (for DAST)
+ZAP_REPORT_DIR := zap_reports
+
+# --- Your Existing Lab Targets ---
+up:
+	@echo "[*] Starting Lab 1 (Keycloak + Flask App)..."
+	@bash setup.sh
+
+down:
+	@echo "[*] Stopping and removing all lab containers and volumes..."
+	@$(DOCKER_COMPOSE) down -v
+
+reset: down
+	@echo "[*] Resetting lab environment..."
+	@rm -rf keycloak_data
+	@docker system prune -f
+	@bash setup.sh
+
+logs:
+	@$(DOCKER_COMPOSE) logs -f
+
+# --- Security Scan Targets ---
+
+# Build Application Image
+# This assumes your Dockerfile is in the project root and builds 'my-python-app:latest'
+# and your docker-compose.yml has a service named 'app'
+build:
+	@echo "--- Building $(APP_IMAGE_NAME) ---"
+	@$(DOCKER_COMPOSE) build app # Build only the 'app' service
+
+# Static Code Analysis (SAST)
+# Analyzes your source code for security vulnerabilities without running it.
+# Uses Bandit, which is specific for Python security analysis.
+sast:
+	@echo "\n--- Running Static Code Analysis (Bandit) on $(APP_SRC_DIR) ---"
+	@docker run --rm \
+		-v "$(PWD)/$(APP_DIR)":/app \
+		python:3.13-alpine sh -c "pip install --no-cache-dir bandit && bandit -r /app" || true
+	@echo "Static code analysis complete. Review findings above."
+
+# Docker Image Vulnerability Scan
+# Scans the built Docker image for known vulnerabilities in OS packages and dependencies.
+# Uses Trivy.
+image-scan: build
+	@echo "\n--- Running Docker Image Vulnerability Scan on $(APP_IMAGE_NAME) with Docker Scout ---"
+	@docker scout quickview $(APP_IMAGE_NAME)
+	@echo "Image vulnerability scan complete. Review findings above."
+
+# Dynamic Application Security Testing (DAST)
+# This target assumes your 'app' service is already running via 'make up'.
+# It waits for the app to be accessible before running scans.
+dast: check_app_ready
+	@echo "\n--- Running DAST Scan (OWASP ZAP Baseline) ---"
+	@mkdir -p $(ZAP_REPORT_DIR)
+	@docker run --rm \
+		-v "$(PWD)/$(ZAP_REPORT_DIR):/zap/wrk:rw" \
+		zaproxy/zap-weekly zap-baseline.py \
+		-t http://host.docker.internal:$(APP_CONTAINER_PORT_HOST) \
+		-r $(ZAP_REPORT_DIR)/zap_baseline_report.html || true 
+		
+	@echo "ZAP baseline scan complete. Report saved to $(ZAP_REPORT_DIR)/zap_baseline_report.html"
+
+	# @echo "\n--- Running DAST Scan (Nikto) ---"
+	# @docker run --rm securecodebox/nikto -h http://host.docker.internal:$(APP_CONTAINER_PORT_HOST)
+	# @echo "Nikto scan complete. Review findings above."
+
+# Helper target to check if the app container is ready for DAST
+check_app_ready:
+	@echo "Waiting for $(APP_CONTAINER_NAME) to be accessible on http://localhost:$(APP_CONTAINER_PORT_HOST)..."
+	@until curl -sS http://localhost:$(APP_CONTAINER_PORT_HOST) > /dev/null; do \
+		echo "App not yet accessible, waiting..."; \
+		sleep 2; \
+	done
+	@echo "$(APP_CONTAINER_NAME) is accessible!"
+
+# Host Security Checks
+# Checks the Docker host's security configuration against best practices (CIS Benchmarks).
+# Uses Docker Bench for Security.
+host-scan:
+    @if ! command -v lynis >/dev/null 2>&1; then \
+        echo "Lynis is not installed. Installing with Homebrew..."; \
+        brew install lynis; \
+    fi
+    @echo "Running Lynis host security scan in non-interactive mode..."
+    @sudo lynis audit system --quick --no-log --no-colors --quiet --cronjob
+    @echo "Host security scan complete. Review findings above."
+    @echo "Note: Lynis must be installed directly on your host (e.g., 'sudo lynis audit system')."
+
+# Master Target for All Scans
+# Runs your lab setup, then all security scans.
+all-scans: up sast image-scan dast host-scan
+	@echo "\n--- All security scans complete! ---"
+	@echo "Remember to review all reports and terminal outputs."
+	@echo "To stop all lab services, run 'make down'."
+
+# --- Cleanup ---
+# Modified clean target to also remove ZAP reports
+clean: down
+	@echo "[*] Resetting lab environment and cleaning up scan reports..."
+	@rm -rf keycloak_data
+	@docker system prune -f
+	@rm -rf $(ZAP_REPORT_DIR) # Added cleanup for ZAP reports
+	@bash setup.sh # Re-runs setup after cleaning

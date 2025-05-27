@@ -1,0 +1,35 @@
+
+.PHONY: up down reset logs
+
+DOCKER_COMPOSE := $(shell command -v docker-compose > /dev/null && echo docker-compose || echo docker compose)
+
+up:
+	@echo "[*] Starting Lab 1 (Keycloak + Flask App)..."
+	@bash setup.sh
+
+down:
+	@echo "[*] Stopping and removing all lab containers and volumes..."
+	@$(DOCKER_COMPOSE) down -v
+
+reset: down
+	@echo "[*] Resetting lab environment..."
+	@rm -rf keycloak_data
+	@docker system prune -f
+	@bash setup.sh
+
+logs:
+	@$(DOCKER_COMPOSE) logs -f
+
+
+# Run Bandit for Python app static analysis
+bandit-check:
+	@echo "Running Bandit static analysis on Flask app..."
+	docker run --rm -v "$(PWD)/app":/app python:3.13-alpine sh -c "pip install --no-cache-dir bandit && bandit -r /app"
+
+# Run Hadolint for Keycloak Dockerfile static analysis
+keycloak-dockerfile-check:
+	@echo "Running Hadolint static analysis on Keycloak Dockerfile..."
+	docker run --rm -i hadolint/hadolint < app/Dockerfile
+
+# Run all static code analysis checks
+check: bandit-check keycloak-dockerfile-check

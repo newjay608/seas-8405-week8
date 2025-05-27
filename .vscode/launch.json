@@ -1,0 +1,15 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open zap_baseline_report.html",
+            "file": "/Users/jayhombal/Library/CloudStorage/GoogleDrive-mhombal@gmail.com/My Drive/3_Resources/Doctorate_In_CyberSecurity/3-CyberSecurityArchitecture/Assignments/homework8/before/zap_reports/zap_baseline_report.html"
+        }
+    ]
+}

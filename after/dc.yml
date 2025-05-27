@@ -1,0 +1,213 @@
+services:
+  # Keycloak Database (PostgreSQL)
+  keycloak-db:
+    image: postgres:16 # Using PostgreSQL 16 as specified in previous interactions
+    env_file:
+      - .env # For database credentials (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)
+    volumes:
+      - keycloak-db_data:/var/lib/postgresql/data # Persistent data for the database
+    networks:
+      - backend # Placed on the backend network for Keycloak to access
+    healthcheck: # Healthcheck for PostgreSQL to ensure it's ready
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak || exit 1"] # Adjust user/db if different in .env
+      interval: 5s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
+    deploy: # Recommended for database services too
+      resources:
+        limits:
+          cpus: '1.0' # Example: Limit to 1 CPU core
+          memory: 2G # Example: Limit to 2 GB RAM
+          pids: 100 # Add this line: Limit to 100 processes/threads
+        reservations:
+          cpus: '0.5' # Example: Reserve 0.5 CPU core
+          memory: 1G # Example: Reserve 1 GB RAM
+
+  # Keycloak Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest # Specific Keycloak version
+    command: ["start-dev", "--import-realm"] # start-dev for development, --import-realm to load realm-export.json
+    env_file: # Moved environment variables to a separate file
+      - .keycloak.env # Path to the Keycloak-specific .env file
+    volumes:
+      # Mount the realm-export.json to automatically import realm configuration
+      - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
+    ports:
+      - "8080:8080" # Expose Keycloak's HTTP port to the host
+    depends_on:
+      keycloak-db:
+        condition: service_healthy # Keycloak waits for its database to be healthy
+      ldap: # Only uncomment and use if you have an LDAP service and it's healthy
+        condition: service_healthy
+    networks:
+      - backend # Keycloak is on the backend network to communicate with its DB and LDAP
+      - frontend # Keycloak is also on the frontend network for client applications (like Flask app) to reach it
+    deploy: # Recommended for Keycloak
+      resources:
+        limits:
+          cpus: '2.0' # Keycloak can be CPU intensive
+          memory: 4G # Keycloak can be memory intensive
+          pids: 200 # Add this line: Limit to 100 processes/threads
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  # Your Flask API Application
+  flask-app:
+    build: ./app # Assumes your Flask app code and Dockerfile are in a subdirectory named 'app'
+    ports:
+      - "15000:5000" # Expose Flask app port to the host
+    env_file: # Moved environment variables to a separate file
+      - .flask_app.env # Path to the Flask app's .env file
+    networks:
+      - frontend # Flask app is on the frontend network to be accessible and reach Keycloak
+    read_only: true # Making filesystem read-only
+    # This mounts the container's root filesystem as read-only. This means that once the container starts, the application running inside cannot write to or modify any files within its own filesystem.
+    # This is a strong defense against attackers. If an attacker manages to compromise your application and gain code execution within the container, they will be severely limited in their ability to:
+    # 1. Install malicious tools or malware.
+    # 2. Modify application files to maintain persistence or alter behavior.
+    # 3. Clean up their tracks by deleting logs or evidence. It forces attackers to operate only in memory or within explicitly writable areas, making their activities much harder and often impossible.
+    security_opt:
+      - no-new-privileges # Preventing privilege escalation
+    # This setting prevents processes within the container from gaining new privileges.
+    # Specifically, it disables the use of setuid and setgid bits on executable files, which are mechanisms that allow a program to run with the permissions of the file's owner or group,
+    # even if the user executing it normally has fewer privileges.
+    depends_on:
+      keycloak:
+        condition: service_started # Flask app only needs Keycloak container to be started
+    # For development, you might want to mount your app code:
+    # volumes:
+    #   - ./app:/app
+    # If you use a volume mount, ensure your Dockerfile's CMD/Entrypoint is appropriate,
+    # or specify a command here. Example:
+    # command: flask run --host=0.0.0.0 --port=5000 # Use 0.0.0.0 inside container for Docker's internal network
+    healthcheck: # Added healthcheck for Flask app
+      test: [ "CMD-SHELL", "curl -f http://localhost:5000/health || exit 1" ] # Adjust /health if your app uses a different path
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s # Give the app some time to fully start up
+    deploy: # Added/Updated deploy for Flask app
+      resources:
+        limits:
+          cpus: '0.5'  # Hard limit: 0.5 of a CPU core
+          memory: 512M # Hard limit: 512 MB RAM
+          pids: 100 # Add this line: Limit to 100 processes/threads
+        reservations:
+          cpus: '0.25'  # Guaranteed minimum CPU share
+          memory: 256M # Guaranteed minimum RAM
+
+  # Optional: LDAP Service (if you plan to federate Keycloak with LDAP)
+  ldap:
+    image: osixia/openldap:1.5.0
+    environment:
+      - LDAP_ORGANISATION=Example Corp
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=adminpw
+    ports:
+      - "389:389" # Expose for potential host access or debugging
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+    networks:
+      - backend # LDAP must be on the same network as Keycloak for federation
+    #read_only: true # Making filesystem read-only
+    # This mounts the container's root filesystem as read-only. This means that once the container starts, the application running inside cannot write to or modify any files within its own filesystem.
+    # This is a strong defense against attackers. If an attacker manages to compromise your application and gain code execution within the container, they will be severely limited in their ability to:
+    # 1. Install malicious tools or malware.
+    # 2. Modify application files to maintain persistence or alter behavior.
+    # 3. Clean up their tracks by deleting logs or evidence. It forces attackers to operate only in memory or within explicitly writable areas, making their activities much harder and often impossible.
+    security_opt:
+      - no-new-privileges # Preventing privilege escalation
+    # This setting prevents processes within the container from gaining new privileges.
+    # Specifically, it disables the use of setuid and setgid bits on executable files, which are mechanisms that allow a program to run with the permissions of the file's owner or group,
+    # even if the user executing it normally has fewer privileges.
+    healthcheck: # Healthcheck for LDAP to ensure it's ready
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost:389 -b '' -s base '(objectclass=*)' > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s # Give it more time to initialize
+    deploy: # Recommended for LDAP
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+          pids: 100 # Add this line: Limit to 100 processes/threads
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Optional: phpLDAPadmin (for managing LDAP)
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    environment:
+      - PHPLDAPADMIN_LDAP_HOSTS=ldap # Hostname for the LDAP service
+    ports:
+      - "8081:80" # Expose phpLDAPadmin UI
+    depends_on:
+      - ldap # Depends on LDAP
+    networks:
+      - backend # phpLDAPadmin needs to be on the same network as LDAP
+    deploy: # Recommended for phpLDAPadmin
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+          pids: 100 # Add this line: Limit to 100 processes/threads
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+
+  # Optional: Intranet App (if you have a separate protected application)
+  # intranet:
+  #   build: ./intranet # Assumes intranet app code in ./intranet
+  #   environment:
+  #     - KEYCLOAK_URL=http://host.docker.internal:8080 # Reach host's Keycloak
+  #     - KEYCLOAK_REALM=CentralIAM
+  #     - KEYCLOAK_CLIENT_ID=intranet
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway" # Map host.docker.internal to host
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - keycloak
+  #   networks:
+  #     - frontend
+  #   read_only: true # Making filesystem read-only
+  #   # This mounts the container's root filesystem as read-only. This means that once the container starts, the application running inside cannot write to or modify any files within its own filesystem.
+  #   # This is a strong defense against attackers. If an attacker manages to compromise your application and gain code execution within the container, they will be severely limited in their ability to:
+  #   # 1. Install malicious tools or malware.
+  #   # 2. Modify application files to maintain persistence or alter behavior.
+  #   # 3. Clean up their tracks by deleting logs or evidence. It forces attackers to operate only in memory or within explicitly writable areas, making their activities much harder and often impossible.
+  #   security_opt:
+  #     - no-new-privileges # Preventing privilege escalation
+  #   # This setting prevents processes within the container from gaining new privileges.
+  #   # Specifically, it disables the use of setuid and setgid bits on executable files, which are mechanisms that allow a program to run with the permissions of the file's owner or group,
+  #   # even if the user executing it normally has fewer privileges.
+  #   healthcheck: # Added healthcheck for Flask app
+  #     test: [ "CMD-SHELL", "curl -f http://localhost:3000/health || exit 1" ] # Adjust /health if your app uses a different path
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 20s # Give the app some time to fully start up
+  #   deploy: # Added/Updated deploy for Intranet app
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'  # Hard limit: 0.5 of a CPU core
+  #         memory: 512M # Hard limit: 512 MB RAM
+  #         pids: 100 # Add this line: Limit to 100 processes/threads
+  #       reservations:
+  #         cpus: '0.25'  # Guaranteed minimum CPU share
+  #         memory: 256M # Guaranteed minimum RAM
+
+volumes:
+  keycloak-db_data:
+  ldap_data: # Only if using LDAP
+  ldap_config: # Only if using LDAP
+
+networks:
+  frontend:
+  backend:

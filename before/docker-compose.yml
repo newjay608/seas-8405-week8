@@ -1,0 +1,20 @@
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    ports:
+      - "8080:8080"
+    command: start-dev
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: my-python-app:latest
+    ports:
+      - "15000:5000"
+    depends_on:
+      - keycloak
